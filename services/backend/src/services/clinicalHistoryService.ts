@@ -130,6 +130,7 @@ class ClinicalHistoryService {
       .first();
     if (!f) throw new Error('File not found');
 
+    // FIXME: ???????? catchn't
     try { await unlink(path.resolve(f.path)); } catch {}
     await db('clinical_history_files').where({ id: f.id }).delete();
   }

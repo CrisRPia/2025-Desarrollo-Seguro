@@ -20,6 +20,8 @@ import errorHandler from './middleware/errorHandler';
 dotenv.config();
 const app = express();
 
+// FIXME: cors???
+
 // Permitir cualquier origen
 app.use(cors())
 
@@ -28,6 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 
 setupSwagger(app);
 
+// FIXME: missing auth; /users has put without  authentication
 app.use('/users', userRoutes);
 app.use('/auth', authRoutes);
 
@@ -43,6 +46,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
+  // this is kinda dumb given docker and proxies
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📖 Swagger UI: http://localhost:${PORT}/api-docs`)
 });

@@ -42,6 +42,7 @@ class AuthService {
     });
     const link = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${user.username}`;
    
+    // FIXME: template injection.
     const template = `
       <html>
         <body>
@@ -117,6 +118,7 @@ class AuthService {
     await transporter.sendMail({
       to: user.email,
       subject: 'Your password reset link',
+      // FIXME: template injection
       html: `Click <a href="${link}">here</a> to reset your password.`
     });
   }

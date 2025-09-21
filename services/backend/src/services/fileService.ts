@@ -7,6 +7,7 @@ import db from '../db';
 const unlink = promisify(fs.unlink);
 
 class FileService {
+  // FIXME: No auth?
   static async saveProfilePicture(
     userId: string,
     file: any //Express.Multer.File
@@ -18,6 +19,7 @@ class FileService {
     if (!user) throw new Error('User not found');
 
     if (user.picture_path) {
+    // FIXME: path traversal
       try { await unlink(path.resolve(user.picture_path)); } catch { /*ignore*/ }
     }
 
@@ -35,6 +37,7 @@ class FileService {
       .first();
     if (!user || !user.picture_path) throw new Error('No profile picture');
 
+    // FIXME: path traversal
     const filePath = user.picture_path;
     const stream   = fs.createReadStream(filePath);
     const ext      = path.extname(filePath).toLowerCase();
@@ -54,6 +57,7 @@ class FileService {
       .first();
     if (!user || !user.picture_path) throw new Error('No profile picture');
 
+    // FIXME: path traversal
     try { await unlink(path.resolve(user.picture_path)); } catch { /*ignore*/ }
 
     await db('users')
