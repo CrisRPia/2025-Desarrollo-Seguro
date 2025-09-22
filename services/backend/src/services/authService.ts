@@ -40,18 +40,21 @@ class AuthService {
         pass: process.env.SMTP_PASS
       }
     });
-    const link = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${user.username}`;
-   
-    // FIXME: template injection.
+
+    const link = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${encodeURIComponent(user.username)}`;
     const template = `
       <html>
         <body>
-          <h1>Hello ${user.first_name} ${user.last_name}</h1>
-          <p>Click <a href="${ link }">here</a> to activate your account.</p>
+          <h1>Hello <%= user.first_name %> <%= user.last_name %> </h1>
+          <p>Click <a href=<%- link %>>here</a> to activate your account.</p>
         </body>
       </html>`;
-    const htmlBody = ejs.render(template);
-    
+
+    const htmlBody = ejs.render(template, {
+      user: user,
+      link: link,
+    });
+
     await transporter.sendMail({
       from: "info@example.com",
       to: user.email,
@@ -114,11 +117,10 @@ class AuthService {
       }
     });
 
-    const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const link = `${process.env.FRONTEND_URL}/reset-password?token=${encodeURIComponent(token)}`;
     await transporter.sendMail({
       to: user.email,
       subject: 'Your password reset link',
-      // FIXME: template injection
       html: `Click <a href="${link}">here</a> to reset your password.`
     });
   }

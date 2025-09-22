@@ -30,7 +30,9 @@ describe("Template Injection PoC", () => {
   });
 
   it("should NOT execute injected code in the email template", async () => {
-    const maliciousFirstName = "<%= 7*7 %>";
+    const value = "7*7*7*7*7*7";
+    const computed = eval(value);
+    const maliciousFirstName = `<%= ${value} %>`;
     const response = await request(app).post("/users").send({
       username: "testuser",
       password: "password",
@@ -44,6 +46,7 @@ describe("Template Injection PoC", () => {
     const sendMailMock = (nodemailer.createTransport() as any).sendMail;
     expect(sendMailMock).toHaveBeenCalled();
     const emailHtml = sendMailMock.mock.calls[0][0].html;
-    expect(emailHtml).not.toContain("49");
+    expect(emailHtml).not.toContain(computed.toString());
+    expect(emailHtml).toContain(value);
   });
 });

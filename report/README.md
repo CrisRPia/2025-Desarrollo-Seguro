@@ -131,14 +131,11 @@ Sanitizar la entrada del usuario para eliminar cualquier carácter de recorrido 
 ```ts
 // services/backend/src/services/invoiceService.ts (Solución)
 const path = require("path");
-const INVOICES_DIR = "/app/resources/invoices"; // Directorio base seguro
+const INVOICES_DIR = path.resolve("/app/resources/invoices");
 
-// ...
-const safeBaseName = path.basename(pdfName);
-const fullPath = path.join(INVOICES_DIR, safeBaseName);
+const fullPath = path.resolve(INVOICES_DIR, pdfName);
 
-// Verificar que la ruta resuelta está dentro del directorio base
-if (!fullPath.startsWith(INVOICES_DIR)) {
+if (!fullPath.startsWith(INVOICES_DIR + path.sep)) {
   throw new Error("Attempted path traversal");
 }
 
@@ -308,11 +305,12 @@ Las plantillas de correo electrónico para la activación de cuenta y reseteo de
 
 ```ts
 // services/backend/src/services/authService.ts
+const link = `${process.env.FRONTEND_URL}/activate-user?token=${invite_token}&username=${encodeURIComponent(user.username)}`;
 const template = `
   <html>
     <body>
-      <h1>Hello ${user.first_name} ${user.last_name}</h1>
-      <p>Click <a href="${link}">here</a> to activate your account.</p>
+      <h1>Hello <%= user.first_name %> <%= user.last_name %> </h1>
+      <p>Click <a href=<%- link %>>here</a> to activate your account.</p>
     </body>
   </html>`;
 const htmlBody = ejs.render(template);
@@ -379,6 +377,14 @@ if (!passwordMatch) {
 }
 ```
 
+### Otros problemas
+
+El proyecto hace un bastante mal trabajo al validar la estructura de los datos
+utilizados. Esto resulta en vulnerabilidades como el SSRF mencionado, y puede
+resultar en comportamiento indefinido fácilmente. Para mitigar esto, se
+recomienda utilizar librerías de santización de datos como [zod](https://zod.dev/),
+que además se pueden intregar al framework utilizado y swagger.
+
 ### Notas adicionales
 
 - Existe [un script para ejecutar los pocs](../test.sh).
@@ -389,3 +395,5 @@ if (!passwordMatch) {
 
 Discutí la información y soluciones con Gemini. Sin embargo, no encuentro el
 botón de compartir conversación en la interfaz. 😅.
+
+Tambien tuve [una conversación con claude](https://claude.ai/share/d8f8ca31-5127-44af-8b20-b93650b966df)

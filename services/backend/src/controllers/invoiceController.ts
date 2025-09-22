@@ -25,6 +25,7 @@ const setPaymentCard = async (req: Request, res: Response, next: NextFunction) =
     if (!paymentBrand || !ccNumber || !ccv || !expirationDate) {
       return res.status(400).json({ error: 'Missing payment details' });
     }
+
     const id   = (req as any).user!.id; 
     await InvoiceService.setPaymentCard(
       id,
@@ -49,6 +50,18 @@ const getInvoicePDF = async (req: Request, res: Response, next: NextFunction) =>
     if (!pdfName) {
       return res.status(400).json({ error: 'Missing parameter pdfName' });
     }
+
+    const path = require("path");
+    const INVOICES_DIR = path.resolve("/app/resources/invoices");
+
+    // Build the full path first
+    const fullPath = path.resolve(INVOICES_DIR, pdfName);
+
+    // Then check if it's still within the allowed directory
+    if (!fullPath.startsWith(INVOICES_DIR + path.sep)) {
+      throw new Error("Attempted path traversal");
+    }
+
     const pdf = await InvoiceService.getReceipt(invoiceId, pdfName);
     // return the pdf as a binary response
     res.setHeader('Content-Type', 'application/pdf');
