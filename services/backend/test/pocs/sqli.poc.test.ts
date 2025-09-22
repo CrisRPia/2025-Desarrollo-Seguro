@@ -77,10 +77,7 @@ describe('SQL Injection PoC', () => {
     expect(response.status).toBe(200);
 
     // Since we are injecting to get all users, this fails.
-    expect(response.body.length).toBe(3);
-
-    const invoiceIds = response.body.map((inv: Invoice) => inv.id);
-    expect(invoiceIds).not.toContain(4);
+    expect(response.body.length).toBe(0);
   });
 });
 

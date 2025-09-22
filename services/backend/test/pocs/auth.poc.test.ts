@@ -1,16 +1,14 @@
-import express from "express";
 import request from "supertest";
 import { Server } from "http";
 import db from "../../src/db";
-import userRoutes from "../../src/routes/user.routes"; // Import the actual user routes
+import app from "../../src/index"; // Import the actual app with middleware
 
 describe("Missing Authorization PoC", () => {
-  let app: express.Express;
   let server: Server;
+  let testUserId: number;
   const testUser = {
-    id: 1,
-    username: "testuser",
-    email: "test@test.com",
+    username: "testuser_auth_poc",
+    email: "test_auth_poc@test.com",
     password: "password",
     first_name: "Initial",
     last_name: "User",
@@ -18,35 +16,31 @@ describe("Missing Authorization PoC", () => {
   };
 
   beforeAll(async () => {
-    await db("users").insert(testUser);
+    // Clean up any existing test data first
+    await db("users").where("email", testUser.email).del();
 
-    app = express();
-    app.use(express.json());
-    app.use("/users", userRoutes);
-
-    server = app.listen(0);
+    // Insert test user and get the generated ID
+    const [insertedUser] = await db("users").insert(testUser).returning("*");
+    testUserId = insertedUser.id;
   });
 
   afterAll(async () => {
-    await db("users").del();
-    server.close();
+    // Clean up test data
+    await db("users").where("id", testUserId).del();
     await db.destroy();
   });
 
   it("should FAIL to update a user via PUT /users/:id without authentication", async () => {
     const response = await request(app)
-      .put(`/users/${testUser.id}`)
+      .put(`/users/${testUserId}`)
       .send({ first_name: "MaliciouslyUpdated" });
 
     // This test asserts the SECURE behavior.
     // A secure system should prevent access and return a 401 or 403 status.
     expect(response.status).toBe(401);
 
-    // The test will FAIL because the current vulnerable code allows the update
-    // and returns a 200 status, proving that authorization is missing.
-
     // Optional: You could also check that the name was NOT updated in a secure system.
-    const dbUser = await db("users").where({ id: testUser.id }).first();
+    const dbUser = await db("users").where({ id: testUserId }).first();
     expect(dbUser.first_name).toBe("Initial");
   });
 });

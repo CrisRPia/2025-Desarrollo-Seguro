@@ -3,7 +3,6 @@ import db from '../db';
 import { Invoice } from '../types/invoice';
 import axios from 'axios';
 import { promises as fs } from 'fs';
-import * as path from 'path';
 
 interface InvoiceRow {
   id: string;
@@ -16,7 +15,10 @@ interface InvoiceRow {
 class InvoiceService {
   static async list( userId: string, status?: string, operator?: string): Promise<Invoice[]> {
     let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+    if (status && operator) {
+      q = q.andWhere("status", operator, status);
+    }
+    console.log({ sql: q.toSQL(), userId, status, operator })
     const rows = await q.select();
     const invoices = rows.map(row => ({
       id: row.id,
