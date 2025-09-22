@@ -142,63 +142,9 @@ if (!fullPath.startsWith(INVOICES_DIR + path.sep)) {
 const pdf = await FileService.getFile(fullPath);
 ```
 
-#### Falta de Autorización (Broken Access Control)
+### Falta de Autorización (Broken Access Control)
 
-##### Problema Adicional de Autorización
-
-Adicionalmente, cualquier usuario autenticado puede seguir modificando a otro usuario. Si este comportamiento no es intencional, se debería guardar y utilizar la id de usuario mediante JWT, no como parámetro.
-
-Actualmente, el endpoint `/users/:id` permite que cualquier usuario autenticado modifique cualquier otro usuario simplemente cambiando el ID en la URL:
-
-```ts
-// Un usuario autenticado puede hacer:
-PUT /users/1 { "first_name": "Modificado" }  // Modifica usuario 1
-PUT /users/2 { "first_name": "Modificado" }  // Modifica usuario 2
-// etc.
-```
-
-**Solución recomendada**: Obtener el `userId` del token JWT decodificado en lugar de usar el parámetro de la URL:
-
-```ts
-// services/backend/src/routes/user.routes.ts (Solución)
-router.put("/", async (req: AuthRequest, res) => {
-  // Remover /:id del path
-  try {
-    const userId = req.user?.id; // Obtener del JWT decodificado
-    if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
-    }
-
-    const updatedUser = await UserService.update(userId, req.body);
-    res.json(updatedUser);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-```
-
-O alternativamente, verificar que el ID del parámetro coincida con el ID del usuario autenticado:
-
-````ts
-// services/backend/src/routes/user.routes.ts (Alternativa)
-router.put('/:id', async (req: AuthRequest, res) => {
-  try {
-    const paramUserId = req.params.id;
-    const authenticatedUserId = req.user?.id;
-
-    if (paramUserId !== authenticatedUserId) {
-      return res.status(403).json({ error: 'Cannot modify other users' });
-    }
-
-    const updatedUser = await UserService.update(paramUserId, req.body);
-    res.json(updatedUser);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-```#### Falta de Autorización (Broken Access Control)
-
-Los endpoints `/users`, `/clinical-history` e `/invoices` no estaban siendo protegidos por el middleware de autenticación debido a un error en el orden de configuración del middleware en la aplicación principal.
+Los endpoints dentro de`/users`, no estaban siendo protegidos por el middleware de autenticación debido a un error en el orden de configuración del middleware en la aplicación principal.
 
 El código original tenía el middleware de autenticación configurado DESPUÉS de las rutas de usuarios:
 
@@ -206,12 +152,12 @@ El código original tenía el middleware de autenticación configurado DESPUÉS 
 // services/backend/src/app.ts (CONFIGURACIÓN INCORRECTA ORIGINAL)
 app.use('/auth', authRoutes);        // Rutas públicas
 app.use('/users', userRoutes);       // ❌ SIN PROTECCIÓN - middleware aún no aplicado
-app.use('/clinical-history', clinicalHistoryRoutes); // ❌ SIN PROTECCIÓN
-app.use('/invoices', invoiceRoutes); // ❌ SIN PROTECCIÓN
 app.use(authMiddleware);             // ⚠️  Middleware aplicado DEMASIADO TARDE
+app.use('/clinical-history', clinicalHistoryRoutes);
+app.use('/invoices', invoiceRoutes);
 ````
 
-Esto significaba que cualquiera podía acceder a todos los endpoints de usuarios, historias clínicas y facturas sin autenticación.
+Esto significaba que cualquiera podía acceder a todos los endpoints de usuarios.
 
 ##### Prueba de Concepto (PoC)
 
@@ -247,30 +193,8 @@ app.use("/auth", authRoutes); // Rutas públicas (sin protección)
 app.use(authMiddleware); // ✅ Middleware aplicado ANTES de las rutas protegidas
 
 app.use("/users", userRoutes); // ✅ Ahora protegidas
-app.use("/clinical-history", clinicalHistoryRoutes); // ✅ Ahora protegidas
-app.use("/invoices", invoiceRoutes); // ✅ Ahora protegidas
-```
-
-También se actualizó el test para usar la aplicación completa en lugar de crear una instancia separada:
-
-```ts
-// services/backend/test/pocs/auth.poc.test.ts (Actualización del test)
-import app from "../../src/app"; // Importar la app completa
-
-describe("Missing Authorization PoC", () => {
-  beforeAll(async () => {
-    await db("users").insert(testUser);
-    // Usar la app real con la configuración corregida
-  });
-
-  it("should FAIL to update a user via PUT /users/:id without authentication", async () => {
-    const response = await request(app) // Usar la app real
-      .put(`/users/${testUserId}`)
-      .send({ first_name: "MaliciouslyUpdated" });
-
-    expect(response.status).toBe(401); // Ahora el test pasa
-  });
-});
+app.use("/clinical-history", clinicalHistoryRoutes);
+app.use("/invoices", invoiceRoutes);
 ```
 
 Adicionalmente, se modificó el archivo principal de la aplicación para evitar conflictos de puerto durante las pruebas, verificando si el puerto está disponible antes de iniciar el servidor:
@@ -382,7 +306,7 @@ if (!passwordMatch) {
 El proyecto hace un bastante mal trabajo al validar la estructura de los datos
 utilizados. Esto resulta en vulnerabilidades como el SSRF mencionado, y puede
 resultar en comportamiento indefinido fácilmente. Para mitigar esto, se
-recomienda utilizar librerías de santización de datos como [zod](https://zod.dev/),
+recomienda utilizar librerías de sanitización de datos como [zod](https://zod.dev/),
 que además se pueden intregar al framework utilizado y swagger.
 
 ### Notas adicionales
