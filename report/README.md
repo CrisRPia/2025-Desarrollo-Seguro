@@ -11,12 +11,16 @@ los tests para reproducirlos y se proponen soluciones.
 
 1. El endpoint para listar facturas (/invoices) es vulnerable a inyección SQL. Los parámetros status y operator de la consulta se concatenan directamente en una consulta cruda (raw) de Knex, permitiendo a un atacante manipular la lógica de la base de datos.
 
-``` ts
+```ts
 // services/backend/src/services/invoiceService.ts
 class InvoiceService {
-  static async list( userId: string, status?: string, operator?: string): Promise<Invoice[]> {
-    let q = db<InvoiceRow>('invoices').where({ userId: userId });
-    if (status) q = q.andWhereRaw(" status "+ operator + " '"+ status +"'");
+  static async list(
+    userId: string,
+    status?: string,
+    operator?: string,
+  ): Promise<Invoice[]> {
+    let q = db<InvoiceRow>("invoices").where({ userId: userId });
+    if (status) q = q.andWhereRaw(" status " + operator + " '" + status + "'");
     const rows = await q.select();
     // ...
   }
@@ -36,14 +40,18 @@ Utilizar consultas parametrizadas (prepared statements) en lugar de concatenaci�
 ```ts
 // services/backend/src/services/invoiceService.ts
 class InvoiceService {
-    static async list( userId: string, status?: string, operator?: string): Promise<Invoice[]> {
-        let q = db<InvoiceRow>('invoices').where({ userId: userId });
-        if (status && operator) {
-            q = q.andWhere('status', operator, status);
-        }
-        const rows = await q.select();
-        // ...
+  static async list(
+    userId: string,
+    status?: string,
+    operator?: string,
+  ): Promise<Invoice[]> {
+    let q = db<InvoiceRow>("invoices").where({ userId: userId });
+    if (status && operator) {
+      q = q.andWhere("status", operator, status);
     }
+    const rows = await q.select();
+    // ...
+  }
 }
 ```
 
@@ -69,9 +77,9 @@ La función de pago de facturas es vulnerable a SSRF. El parámetro paymentBrand
 ```ts
 // services/backend/src/services/invoiceService.ts
 const paymentResponse = await axios.post(`http://${paymentBrand}/payments`, {
-    ccNumber,
-    ccv,
-    expirationDate
+  ccNumber,
+  ccv,
+  expirationDate,
 });
 ```
 
@@ -85,15 +93,16 @@ Implementar una lista blanca (allow-list) de los paymentBrand permitidos y valid
 
 ```ts
 // services/backend/src/services/invoiceService.ts (Solución)
-const ALLOWED_PAYMENT_BRANDS = ['visa', 'mastercard'];
+const ALLOWED_PAYMENT_BRANDS = ["visa", "mastercard"];
 
 if (!ALLOWED_PAYMENT_BRANDS.includes(paymentBrand)) {
-    throw new Error('Invalid payment provider');
+  throw new Error("Invalid payment provider");
 }
 
-const paymentResponse = await axios.post(`http://${paymentBrand}/payments`, { /* ... */ });
+const paymentResponse = await axios.post(`http://${paymentBrand}/payments`, {
+  /* ... */
+});
 ```
-
 
 #### Recorrido de Directorios (Path Traversal)
 
@@ -102,10 +111,10 @@ El endpoint que sirve las facturas en PDF es vulnerable a Path Traversal. El pdf
 ```ts
 // services/backend/src/services/fileService.ts
 class FileService {
-    static async getFile(filePath: string): Promise<string> {
-        const content = await fs.readFile(filePath, 'utf-8');
-        return content;
-    }
+  static async getFile(filePath: string): Promise<string> {
+    const content = await fs.readFile(filePath, "utf-8");
+    return content;
+  }
 }
 ```
 
@@ -121,8 +130,8 @@ Sanitizar la entrada del usuario para eliminar cualquier carácter de recorrido 
 
 ```ts
 // services/backend/src/services/invoiceService.ts (Solución)
-const path = require('path');
-const INVOICES_DIR = '/app/resources/invoices'; // Directorio base seguro
+const path = require("path");
+const INVOICES_DIR = "/app/resources/invoices"; // Directorio base seguro
 
 // ...
 const safeBaseName = path.basename(pdfName);
@@ -130,7 +139,7 @@ const fullPath = path.join(INVOICES_DIR, safeBaseName);
 
 // Verificar que la ruta resuelta está dentro del directorio base
 if (!fullPath.startsWith(INVOICES_DIR)) {
-    throw new Error('Attempted path traversal');
+  throw new Error("Attempted path traversal");
 }
 
 const pdf = await FileService.getFile(fullPath);
@@ -166,10 +175,14 @@ Las plantillas de correo electrónico para la activación de cuenta y reseteo de
 
 ```ts
 // services/backend/src/services/authService.ts
-const emailHtml = ejs.render(template, {
-  user: user,
-  activationLink: activationLink
-});
+const template = `
+  <html>
+    <body>
+      <h1>Hello ${user.first_name} ${user.last_name}</h1>
+      <p>Click <a href="${link}">here</a> to activate your account.</p>
+    </body>
+  </html>`;
+const htmlBody = ejs.render(template);
 ```
 
 ##### Prueba de Concepto (PoC)
@@ -180,8 +193,24 @@ El test crea un usuario con un first_name que contiene código EJS `<%= 7*7 %>`.
 
 ##### Solución Propuesta
 
-# TODO
-Asegurarse de que todos los datos de usuario en las plantillas EJS se rendericen con la sintaxis de escape <%= ... %> en lugar de la sintaxis sin escape <%- ... %>. Adicionalmente, se puede sanitizar la entrada del usuario antes de pasarla a la plantilla para eliminar cualquier carácter potencialmente peligroso.
+La solución tiene dos partes. Primero, asegurarse de que la plantilla .ejs utilice la sintaxis de escape <%= ... %> para cualquier dato proveniente del usuario. Segundo, pasar los datos de forma segura a la plantilla.
+
+```ts
+// services/backend/src/services/authService.ts (Solución)
+// Suponiendo que el template usa <%= user.first_name %>
+const template = `
+  <html>
+    <body>
+      <h1>Hello <%= user.first_name %> <%= user.last_name %> </h1>
+      <p>Click <a href=<%- link %>>here</a> to activate your account.</p>
+    </body>
+  </html>`;
+
+const htmlBody = ejs.render(template, {
+  user: user,
+  link: activationLink,
+});
+```
 
 #### Almacenamiento Inseguro (Insecure Storage)
 
@@ -199,18 +228,31 @@ Utilizar una función de hashing criptográficamente segura como bcrypt (que ya 
 
 ```ts
 // services/backend/src/services/userService.ts (Solución al crear)
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 // ...
 const saltRounds = 10;
 const hashedPassword = await bcrypt.hash(password, saltRounds);
-const [newUser] = await db('users').insert({
+const [newUser] = await db("users")
+  .insert({
     // ...
-    password: hashedPassword
-}).returning('*');
+    password: hashedPassword,
+  })
+  .returning("*");
 
 // services/backend/src/services/authService.ts (Solución al autenticar)
 const passwordMatch = await bcrypt.compare(password, user.password);
 if (!passwordMatch) {
-    throw new Error('Invalid credentials');
+  throw new Error("Invalid credentials");
 }
 ```
+
+### Notas adicionales
+
+- Existe [un script para ejecutar los pocs](../test.sh).
+
+- Existe [un archivo con los resultados de pocs antes de las soluciones](./test_output.md)
+
+### Bibliografía
+
+Discutí la información y soluciones con Gemini. Sin embargo, no encuentro el
+botón de compartir conversación en la interfaz. 😅.
