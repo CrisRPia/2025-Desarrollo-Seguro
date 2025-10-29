@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
+    "test:pocs": "jest test/pocs",
     "dev": "ts-node src/index.ts"
   },
   "author": "",

@@ -66,3 +66,8 @@ def test_login(setup_create_user):
     auth_token = response.json()["token"]
     assert auth_token
 
+def main():
+    pytest.main()
+
+if __name__ == "__main__":
+    main()
