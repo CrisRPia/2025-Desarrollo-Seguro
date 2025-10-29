@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import routes from '../controllers/authController';
+import authMiddleware from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -7,6 +8,7 @@ const router = Router();
 // This route is typically used for user registration
 router.post('/', routes.createUser);
 
+router.use(authMiddleware)
 // PUT /auth/:id to update an existing user
 // This route is typically used for updating user details
 router.put('/:id', routes.updateUser);

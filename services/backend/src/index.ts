@@ -23,10 +23,9 @@ app.use(express.urlencoded({ extended: true }));
 setupSwagger(app);
 
 app.use('/auth', authRoutes);
-
+app.use('/users', userRoutes);
 // Protect everything below
 app.use(authMiddleware);
-app.use('/users', userRoutes);
 app.use('/clinical-history', clinicalHistoryRoutes);
 app.use('/invoices', invoiceRoutes);
 

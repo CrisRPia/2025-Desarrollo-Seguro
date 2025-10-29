@@ -30,7 +30,10 @@ describe("Template Injection PoC", () => {
   });
 
   it("should NOT execute injected code in the email template", async () => {
+    // Si el servicio evalúa el valor, la respuesta tendrá el resultado de
+    // éste cáclulo.
     const value = "7*7*7*7*7*7";
+    // Utilizamos el eval de js para calcular exactamente el valor objetivo.
     const computed = eval(value);
     const maliciousFirstName = `<%= ${value} %>`;
     const response = await request(app).post("/users").send({
@@ -41,12 +44,15 @@ describe("Template Injection PoC", () => {
       last_name: "User",
     });
 
-    // This test asserts the SECURE behavior.
-    // A secure system should not execute the injected code.
     const sendMailMock = (nodemailer.createTransport() as any).sendMail;
+    // Se utilizó el mock
     expect(sendMailMock).toHaveBeenCalled();
+
+    // El html no contiene el valor computado
     const emailHtml = sendMailMock.mock.calls[0][0].html;
     expect(emailHtml).not.toContain(computed.toString());
+
+   // El html contiene el valor sin computar
     expect(emailHtml).toContain(value);
   });
 });

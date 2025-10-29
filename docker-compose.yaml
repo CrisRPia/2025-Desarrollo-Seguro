@@ -42,6 +42,7 @@ services:
     
   #add a postgres service
   postgres:
+    platform: linux/amd64
     image: postgres:latest
     container_name: postgres
     environment:
@@ -51,13 +52,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 60s
 
   visa:
     build:
@@ -72,6 +74,7 @@ services:
     container_name: master
 
   mailhog:
+    platform: linux/amd64
     image: mailhog/mailhog
     ports:
       - "8025:8025"
